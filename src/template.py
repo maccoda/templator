@@ -1,7 +1,9 @@
-import re;
+import re
+
 
 class Template:
     """docstring for Template."""
+
     def __init__(self, file_name):
         self.content = ""
         # Mapping between content in template to final content
@@ -40,9 +42,9 @@ class Template:
                 self.map[wrapped_key] = data[key]
                 replace_with_evaluated_content(wrapped_key, data[key])
             else:
-                print(key,"is not present!!!")
+                print(key, "is not present!!!")
 
-        print(self.content)
+        return self.content
 
 
 if __name__ == '__main__':
