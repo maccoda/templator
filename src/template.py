@@ -11,13 +11,13 @@ class Template:
         # Open the file and lets start the templating
         with open(file_name, encoding="utf-8") as f:
             self.content = f.read()
-            # Want to capture everything in braces
+            # Want to capture everything in double braces
             # NOTE To escape braces in string need to double up
-            regex = re.compile("{{\w+}}")
+            regex = re.compile("{{[#/]*\w+(?:\s\w+)*}}")
             segments = regex.findall(self.content)
             for match in segments:
                 self.map[match] = ""
-            print(self.map)
+            print("The built map is: ", self.map)
 
     # This function will take the data and will open the file here
     def render(self, data):
