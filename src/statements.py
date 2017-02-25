@@ -1,64 +1,81 @@
-"""Module containing all data related to the parsing and evaluating of
+"""
+Module containing all data related to the parsing and evaluating of
 statements within a template.
 """
 
+import logging
 import re
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-class Statement():
+
+class Parser:
     """
-    A statement contained within the template. This will be the capture in
-    the braces.
+    The parser to parse the template string and determine which areas are required to be substituted.
     """
+    variable_parser = r"{{(\w+)}}"
+    # FIXME May still have problems if there is an if within an if
+    conditional_parser = r"{{#if (\w+)}}((?:\s|.)+?){{/if}}"
+    loop_parser = r"{{#each (\w+)}}((?:\s|.)+?){{/each}}"
+    largest_element_parser = r"{{#(\w+)\s\w+}}(?:\s|.)+?\s*{{/\1}}"
 
-    def __init__(self):
-        self.value = ""
+    def __init__(self, content):
+        self.content = content
 
-    def evaluate(self):
-        return self.value
+    def render(self, data):
+        matches = re.finditer(self.largest_element_parser, self.content)
 
+        if not matches:
+            return self.content
 
-class VariableStatement(Statement):
-    """A statement for a single variable substitution."""
+        for match in matches:
+            if match.group(1) == "if":
+                conditional_content = re.match(self.conditional_parser, match.group())
+                eval_cond = self.__evaluate_conditional(conditional_content, data)
+                result = Parser(eval_cond).render(data)
+                if result:
+                    self.content = self.content.replace(match.group(), result)
 
-    def __init__(self, template_string, data_map):
-        self.template_string = template_string
-        self.value = ""
+            elif match.group(1) == "each":
+                loop_content = re.match(self.loop_parser, match.group())
+                eval_loop = self.__evaluate_loop(loop_content, data)
+                result = Parser(eval_loop).render(data)
+                if result:
+                    self.content = self.content.replace(match.group(), result)
 
-        def extract_segment(segment):
-            # Strip the braces
-            return segment[2:len(segment) - 2]
+            else:
+                raise Exception
+        result = self.__evaluate_variables(self.content, data)
+        return result
 
-        # Data should be a dictionary
-        for key in data_map.keys():
-            unwrapped_key = extract_segment(template_string)
-            # Check if the template contains the value
-            if unwrapped_key in data_map:
-                self.value = data_map[key]
-
-
-class ConditonalStatement(Statement):
-    """A statement to evaluate a conditional branching."""
-
-    def __init__(self, template_string, data_map):
-        self.template_string = template_string
-        self.value = ""
-
-        def extract_segment(segment):
-            # Strip the braces and if
-            return segment[5:len(segment) - 2]
-        parts = re.split("({{[#/]*\w+(?:\s\w+)*}})", self.template_string)
-        # First is empty for some reason...
-        # First will always be of form {{#if boolean}}
-        boolean_eval = extract_segment(parts[1])
-        if boolean_eval:
-            self.value = parts[2].strip()
+    def __evaluate_conditional(self, re_capture, data):
+        condition = re_capture.group(1)
+        alternatives = re_capture.group(2).split("{{#else}}")
+        # FIXME Does not check if is in the table, should fail anyway
+        if data[condition]:
+            return alternatives[0]
         else:
-            self.value = parts[4].strip()
+            return alternatives[1]
+
+    def __evaluate_loop(self, re_capture, data):
+        iteration = re_capture.group(1)
+        internals = re_capture.group(2)
+
+        result = ""
+        # FIXME Again no check
+        for element in data[iteration]:
+            result += self.__evaluate_variables(internals, element)
+
+        return result
+
+    def __evaluate_variables(self, template_string, data):
+        matches = re.finditer(self.variable_parser, template_string)
+        result = template_string.lstrip()
+        for match in matches:
+            key = match.group(1)
+            result = result.replace(match.group(), data[key])
+
+        return result
 
 
-class LoopStatement(Statement):
-    """A statement to evaluate a loop."""
-
-    def __init__(self, template_string, data_map):
-        self.template_string = template_string

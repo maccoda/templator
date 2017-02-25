@@ -1,0 +1,14 @@
+Hello there everyone from {{city}}
+{{#each events}}
+  {{#if my_condition}}
+  The condition was true {{name}}!
+  {{#else}}
+  The condition was false...
+  {{/if}}
+{{/each}}
+And that is all they wrote.
+{{#if events}}
+  {{#each my_condition}}
+  The condition was true {{name}}!
+  {{/each}}
+{{/if}}
